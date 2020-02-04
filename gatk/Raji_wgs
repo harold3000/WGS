@@ -1,5 +1,3 @@
-####################################Pipeline of WGS analysis####################################
-
 #Install essential packages in Unbuntu
 sudo apt install build-essential
 
@@ -175,4 +173,4 @@ cpanm ~/yonggang/vep/JSON-4.00.tar.gz
 cpanm ~/yonggang/vep/PerlIO-gzip-0.19.tar.gz
 cpanm ~/yonggang/vep/Bio-BigFile-1.07.tar.gz
 
-###
+##
