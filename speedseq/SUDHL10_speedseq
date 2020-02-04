@@ -1,4 +1,3 @@
-
 #Call variants on a single sample sequenced with multiple libraries
 
 # Step1_Use speedseq align to produce a sorted, duplicate-marked, BAM alignment of each library.
@@ -26,4 +25,4 @@ speedseq -sv \
 	-D sudhl10_merged.discordants.bam \
 	-R ~/yonggang/wgs_input/hg38_ucsc/hg38.fasta
 
-	##
+##
