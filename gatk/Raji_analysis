@@ -1,0 +1,182 @@
+####################################Pipeline of WGS analysis####################################
+
+########################Step1_FastQC####################################
+#Choosing the default Java to use (java 11 for FastQC)
+sudo update-alternatives --config java
+
+fastqc *.fastq.gz
+
+########################Step2_Trimmer####################################
+#Raji
+java -jar ~/yonggang/trimmomatic/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 -trimlog logfile ~/yonggang/wgs_input/Raji_S7_L001_R1_001.fastq.gz ~/yonggang/wgs_input/Raji_S7_L001_R2_001.fastq.gz out.Raji_L001_R1_001.fq.gz out.trim.Raji_L001_R1_001.fq.gz out.Raji_L001_R2_001.fq.gz out.trim.Raji_L001_R2_001.fq.gz ILLUMINACLIP:/home/yonggang/yonggang/trimmomatic/Trimmomatic-0.38/adapters/NexteraPE-PE.fa:2:30:10 SLIDINGWINDOW:5:20 LEADING:5 TRAILING:5 MINLEN:50
+#ILLUMINACLIP: Using 1 prefix pairs, 4 forward/reverse sequences, 0 forward only sequences, 0 reverse only sequences
+Input Read Pairs: 171136986 Both Surviving: 155026103 (90.59%) Forward Only Surviving: 11533923 (6.74%) Reverse Only Surviving: 2302380 (1.35%) Dropped: 2274580 (1.33%)
+TrimmomaticPE: Completed successfully
+
+java -jar ~/yonggang/trimmomatic/Trimmomatic-0.38/trimmomatic-0.38.jar PE -phred33 -trimlog logfile2 ~/yonggang/wgs_input/Raji_S7_L002_R1_001.fastq.gz ~/yonggang/wgs_input/Raji_S7_L002_R2_001.fastq.gz out.Raji_L002_R1_001.fq.gz out.trim.Raji_L002_R1_001.fq.gz out.Raji_L002_R2_001.fq.gz out.trim.Raji_L002_R2_001.fq.gz ILLUMINACLIP:/home/yonggang/yonggang/trimmomatic/Trimmomatic-0.38/adapters/NexteraPE-PE.fa:2:30:10 SLIDINGWINDOW:5:20 LEADING:5 TRAILING:5 MINLEN:50
+#ILLUMINACLIP: Using 1 prefix pairs, 4 forward/reverse sequences, 0 forward only sequences, 0 reverse only sequences
+Input Read Pairs: 172076705 Both Surviving: 156166862 (90.75%) Forward Only Surviving: 11442076 (6.65%) Reverse Only Surviving: 2237892 (1.30%) Dropped: 2229875 (1.30%)
+TrimmomaticPE: Completed successfully
+
+########################Step3_BWA####################################
+#Index
+#Fasta file is from GATK_Bundle
+bwa index Homo_sapiens_assembly38.fasta
+
+#Raji
+bwa mem -t 6 -R '@RG\tID:Raji_L001\tPL:illumina\tSM:Raji_L001_R1R2_001' ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta out.Raji_L001_R1_001.fq.gz out.Raji_L001_R2_001.fq.gz | samtools view -S -b - > Raji_L001_R1R2_001.bam
+bwa mem -t 6 -R '@RG\tID:Raji_L002\tPL:illumina\tSM:Raji_L002_R1R2_001' ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta out.Raji_L002_R1_001.fq.gz out.Raji_L002_R2_001.fq.gz | samtools view -S -b - > Raji_L002_R1R2_001.bam
+
+########################Step4_Sort####################################
+#Raji
+time samtools sort -@ 4 -m 4G -O bam -o Raji_L001_R1R2_001.sorted.bam Raji_L001_R1R2_001.bam
+time samtools sort -@ 4 -m 4G -O bam -o Raji_L002_R1R2_001.sorted.bam Raji_L002_R1R2_001.bam
+
+########################Step5_MarkDuplicates####################################
+#Raji
+java -jar picard.jar MarkDuplicates \
+I=Raji_L001_R1R2_001.sorted.bam \
+O=Raji_L001_R1R2_001.sorted.markdup.bam \
+M=Raji_L001_R1R2_001.sorted.markdup_metrics.txt
+
+#index
+samtools index Raji_L001_R1R2_001.sorted.markdup.bam
+
+java -jar picard.jar MarkDuplicates \
+I=Raji_L002_R1R2_001.sorted.bam \
+O=Raji_L002_R1R2_001.sorted.markdup.bam \
+M=Raji_L002_R1R2_001.sorted.markdup_metrics.txt
+
+#index
+samtools index Raji_L002_R1R2_001.sorted.markdup.bam
+
+########################Step6_Merge####################################
+#Raji
+samtools merge Raji_L1L2.sorted.markdup.bam Raji_L001_R1R2_001.sorted.markdup.bam Raji_L002_R1R2_001.sorted.markdup.bam
+#Raji_index
+samtools index Raji_L1L2.sorted.markdup.bam
+
+########################Step7_BaseRecalibrator###################################
+#BQSR preparation#
+#Index Homo_sapiens_assembly38.known_indels.vcf
+time bgzip Homo_sapiens_assembly38.known_indels.vcf
+time tabix Homo_sapiens_assembly38.known_indels.vcf.gz
+
+#Index Mills_and_1000G_gold_standard.indels.hg38.vcf
+time bgzip Mills_and_1000G_gold_standard.indels.hg38.vcf
+
+time tabix Mills_and_1000G_gold_standard.indels.hg38.vcf.gz
+
+#Index dbsnp_146.hg38.vcf
+time bgzip dbsnp_146.hg38.vcf
+time tabix dbsnp_146.hg38.vcf.gz
+
+#Choosing the default Java to use (java 8 for GATK)
+sudo update-alternatives --config java
+
+#Raji
+gatk BaseRecalibrator \
+-R ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta \
+-I Raji_L1L2.sorted.markdup.bam \
+--known-sites ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.known_indels.vcf.gz \
+--known-sites ~/yonggang/wgs_input/gatk_bundle/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz \
+--known-sites ~/yonggang/wgs_input/gatk_bundle/dbsnp_146.hg38.vcf.gz \
+-O Raji_L1L2.sorted.markdup.recal_data.table
+
+#Raji
+#ApplyBQSR
+gatk ApplyBQSR \
+--bqsr-recal-file Raji_L1L2.sorted.markdup.recal_data.table \
+-R ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta \
+-I Raji_L1L2.sorted.markdup.bam \
+-O Raji_L1L2.sorted.markdup.BQSR.bam
+
+#index
+samtools index Raji_L1L2.sorted.markdup.BQSR.bam
+
+########################Step8_VQSR (SNP&Indel)####################################
+#Raji
+gatk HaplotypeCaller \
+-R ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta \
+-I Raji_L1L2.sorted.markdup.BQSR.bam \
+-O Raji_L1L2.HC.vcf.gz
+
+#######################Step9_SNP mode####################################
+#IndexFeatureFile
+gatk IndexFeatureFile \
+-F <cohort.vcf.gz>
+
+#Raji
+#Keep these reference files (.vcf) in the similar folder with the query data (.vcf)
+time gatk VariantRecalibrator \
+-R ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta \
+-V ~/yonggang/wgs_output/Raji_L1L2.HC.vcf.gz \
+--resource hapmap,known=false,training=true,truth=true,prior=15.0:hapmap_3.3.hg38.vcf \
+--resource omni,known=false,training=true,truth=false,prior=12.0:thousandG_omni2.5.hg38.vcf \
+--resource 1000G,known=false,training=true,truth=false,prior=10.0:thousandG_phase1.snps.high_confidence.hg38.vcf \
+--resource dbsnp,known=true,training=false,truth=false,prior=2.0:dbsnp_146.hg38.vcf \
+--an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR \
+--mode SNP \
+--truth-sensitivity-tranche 100.0 --truth-sensitivity-tranche 99.9 --truth-sensitivity-tranche 99.0 --truth-sensitivity-tranche 90.0 \
+--rscript-file Raji_L1L2.HC.snaps.plots.R \
+--tranches-file Raji_L1L2.HC.snaps.tranches \
+-O Raji_L1L2.HC.snaps.recal
+
+time gatk ApplyVQSR \
+-R ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta \
+-V ~/yonggang/wgs_output/Raji_L1L2.HC.vcf.gz \
+-ts-filter-level 99.0 \
+--tranches-file Raji_L1L2.HC.snaps.tranches \
+--recal-file Raji_L1L2.HC.snaps.recal \
+-mode SNP \
+-O Raji_L1L2.HC.snaps.VQSR.vcf.gz
+
+########################Step10_Indel mode####################################
+#Raji
+time gatk VariantRecalibrator \
+-R ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta \
+-V Raji_L1L2.HC.snaps.VQSR.vcf.gz \
+--resource mills,known=true,training=true,truth=true,prior=12.0:Mills_and_1000G_gold_standard.indels.hg38.vcf \
+-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR \
+-mode INDEL \
+--max-gaussians 6 \
+--rscript-file Raji_L1L2.HC.snaps.indels.plots.R \
+--tranches-file Raji_L1L2.HC.snaps.indels.tranches \
+-O Raji_L1L2.HC.snaps.indels.recal
+
+time gatk ApplyVQSR \
+-R ~/yonggang/wgs_input/gatk_bundle/Homo_sapiens_assembly38.fasta \
+-V Raji_L1L2.HC.snaps.VQSR.vcf.gz \
+--ts-filter-level 99.0 \
+--tranches-file Raji_L1L2.HC.snaps.indels.tranches \
+--recal-file Raji_L1L2.HC.snaps.indels.recal \
+--mode INDEL \
+-O Raji_L1L2.HC.VQSR.vcf.gz
+
+########################Step11_VEP Annotation####################################
+#VEP installment#
+
+#Install MySQL
+sudo apt-get update
+sudo apt-get install mysql-server
+
+#Install DBI-1.642.tar.gz
+cpanm git://github.com/perl5-dbi/dbi.git
+
+#Install VEP
+git clone https://github.com/Ensembl/ensembl-vep.git
+cd ensembl-vep
+perl INSTALL.pl
+
+$#Install additional CPAN modules
+sudo apt-get install libdbd-mysql-perl
+cpanm Set::IntervalTree
+cpanm ~/yonggang/vep/JSON-4.00.tar.gz
+cpanm ~/yonggang/vep/PerlIO-gzip-0.19.tar.gz
+cpanm ~/yonggang/vep/Bio-BigFile-1.07.tar.gz
+
+#VEP Annotation#
+#Raji
+vep --cache --dir_cache ~/yonggang/vep/ensembl-vep -i Raji_L1L2.HC.VQSR.vcf.gz -o Raji_L1L2.HC.VQSR.Annotation.txt --fork 4 --tab --everything
+
+##

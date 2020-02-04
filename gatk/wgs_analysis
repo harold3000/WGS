@@ -1,3 +1,5 @@
+####################################Pipeline of WGS analysis####################################
+
 #Install essential packages in Unbuntu
 sudo apt install build-essential
 
@@ -153,7 +155,6 @@ time $gatk ApplyVQSR \
 
 
 #VEP installment#
-
 #Install MySQL
 sudo apt-get update
 sudo apt-get install mysql-server
