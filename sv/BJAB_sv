@@ -1,0 +1,36 @@
+# Predict SV (structure variant) with lumpy
+
+
+# Extract the discordant paired-end alignments.
+samtools view -b -F 1294 ~/yonggang/wgs_output/bjab_sv/BJAB_L001_R1R2_001.sorted.bam > BJAB.L001.discordants.unsorted.bam
+samtools view -b -F 1294 ~/yonggang/wgs_output/bjab_sv/BJAB_L002_R1R2_001.sorted.bam > BJAB.L002.discordants.unsorted.bam
+
+# Extract the split-read alignments
+samtools view -h ~/yonggang/wgs_output/bjab_sv/BJAB_L001_R1R2_001.sorted.bam \
+    | ~/yonggang/speedseq/lumpy-sv/scripts/extractSplitReads_BwaMem -i stdin \
+    | samtools view -Sb - \
+    > BJAB.L001.splitters.unsorted.bam
+samtools view -h ~/yonggang/wgs_output/bjab_sv/BJAB_L002_R1R2_001.sorted.bam \
+    | ~/yonggang/speedseq/lumpy-sv/scripts/extractSplitReads_BwaMem -i stdin \
+    | samtools view -Sb - \
+    > BJAB.L002.splitters.unsorted.bam
+
+
+# Sort both alignments
+samtools sort BJAB.L001.discordants.unsorted.bam -o BJAB.L001.discordants.bam
+samtools sort BJAB.L002.discordants.unsorted.bam -o BJAB.L002.discordants.bam
+
+samtools sort BJAB.L001.splitters.unsorted.bam -o BJAB.L001.splitters.bam
+samtools sort BJAB.L002.splitters.unsorted.bam -o BJAB.L002.splitters.bam
+
+# SV calling
+lumpyexpress \
+    -B BJAB_L001_R1R2_001.sorted.bam,BJAB_L002_R1R2_001.sorted.bam \
+    -S BJAB.L001.splitters.bam,BJAB.L002.splitters.bam \
+    -D BJAB.L001.discordants.bam,BJAB.L002.discordants.bam \
+    -o BJAB.lumpy.sv.vcf
+
+# Annotations using VEP
+~/yonggang/vep/ensembl-vep/vep --cache -i BJAB.lumpy.sv.vcf --format vcf -o BJAB.lumpy.sv.annotations.vcf --assembly GRCh38 --vcf --fork 4 --everything
+
+##

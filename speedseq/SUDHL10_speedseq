@@ -1,0 +1,29 @@
+
+#Call variants on a single sample sequenced with multiple libraries
+
+# Step1_Use speedseq align to produce a sorted, duplicate-marked, BAM alignment of each library.
+speedseq align -o sudhl10_s1 -R "@RG\tID:SU-DHL-10_s1\tSM:SU-DHL-10\tLB:lib1" ~/yonggang/wgs_input/hg38_ucsc/hg38.fasta ~/yonggang/wgs_input/SUDHL10/SU-DHL-10_S10_L001_R1_001.fastq.gz ~/yonggang/wgs_input/SUDHL10/SU-DHL-10_S10_L001_R2_001.fastq.gz
+
+speedseq align -o sudhl10_s2 -R "@RG\tID:SU-DHL-10_s2\tSM:SU-DHL-10\tLB:lib2" ~/yonggang/wgs_input/hg38_ucsc/hg38.fasta out.SUDHL10_L002_R1_001.fq.gz out.SUDHL10_L002_R2_001.fq.gz
+
+#Step2_Merge the samples
+sambamba merge sudhl10_merged.bam sudhl10_speedseq1.bam sudhl10_speedseq2.bam
+sambamba index sudhl10_merged.bam
+
+#Step3_Use speedseq var to call SNVs and indels.
+speedseq var \
+	-o sudhl10 \
+	-w annotations/ceph18.b37.include.2014-01-15.bed \
+	~/yonggang/wgs_input/hg38_ucsc/hg38.fasta \
+	sudhl10_merged.bam
+
+#Step4_Use speedseq sv to call structural variants.
+speedseq -sv \
+	-o sudhl10 \
+	-x annotations/ceph18.b37.lumpy.exclude.2014-01-15.bed \
+	-B sudhl10_merged.bam \
+	-S sudhl10_merged.splitters.bam \
+	-D sudhl10_merged.discordants.bam \
+	-R ~/yonggang/wgs_input/hg38_ucsc/hg38.fasta
+
+	##
