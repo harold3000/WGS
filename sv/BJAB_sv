@@ -1,6 +1,5 @@
 # Predict SV (structure variant) with lumpy
 
-
 # Extract the discordant paired-end alignments.
 samtools view -b -F 1294 ~/yonggang/wgs_output/bjab_sv/BJAB_L001_R1R2_001.sorted.bam > BJAB.L001.discordants.unsorted.bam
 samtools view -b -F 1294 ~/yonggang/wgs_output/bjab_sv/BJAB_L002_R1R2_001.sorted.bam > BJAB.L002.discordants.unsorted.bam
@@ -14,7 +13,6 @@ samtools view -h ~/yonggang/wgs_output/bjab_sv/BJAB_L002_R1R2_001.sorted.bam \
     | ~/yonggang/speedseq/lumpy-sv/scripts/extractSplitReads_BwaMem -i stdin \
     | samtools view -Sb - \
     > BJAB.L002.splitters.unsorted.bam
-
 
 # Sort both alignments
 samtools sort BJAB.L001.discordants.unsorted.bam -o BJAB.L001.discordants.bam
