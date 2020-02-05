@@ -4,7 +4,6 @@
 # View bam files
 samtools view -h Total-B_L001_R1R2_001.sorted.markdup.bam "chr1:1-10"
 
-
 # Step1_EXTRACTING READ MAPPING FROM BAM/SAM FILES
 /home/yonggang/yonggang/cnvnator/CNVnator-master/cnvnator -root Total-B.root -genome hg38 -tree ~/yonggang/wgs_output/totalb/Total-B_L1L2.sorted.markdup.BQSR.bam
 
