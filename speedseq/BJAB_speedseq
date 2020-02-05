@@ -1,0 +1,4 @@
+
+speedseq align -o bjab_speedseq1 -R "@RG\tID:BJAB_S5_L001\tPL:illumina\tSM:BJAB_S5_L001_R1R2_001" ~/yonggang/wgs_input/GRCh37/human_g1k_v37.fasta out.BJAB_L001_R1_001.fq.gz out.BJAB_L001_R2_001.fq.gz
+
+speedseq align -o bjab_speedseq2 -R "@RG\tID:BJAB_S5_L002\tPL:illumina\tSM:BJAB_S5_L002_R1R2_001" ~/yonggang/wgs_input/GRCh37/human_g1k_v37.fasta out.BJAB_L002_R1_001.fq.gz out.BJAB_L002_R2_001.fq.gz
